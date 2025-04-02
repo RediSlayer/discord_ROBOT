@@ -3,6 +3,7 @@ from discord.ext import commands
 import requests
 import random
 import key  # Importamos el archivo key.py con el token
+import os  # Importar os para acceder a las variables de entorno
 
 # Configuración del bot
 intents = discord.Intents.default()
@@ -196,6 +197,48 @@ async def ship(ctx, usuario1: discord.Member, usuario2: discord.Member):
     await ctx.send(embed=embed)
 
 @bot.command()
+async def osu(ctx, *, username):
+    """Busca información del perfil de osu! de un usuario"""
+    osu_api_key = os.getenv("OSU_API_KEY")
+    if not osu_api_key:
+        await ctx.send("🔴 La API key de osu! no está configurada.")
+        return
+
+    try:
+        response = requests.get(f"https://osu.ppy.sh/api/get_user?k={osu_api_key}&u={username}")
+        
+        if response.status_code == 200 and response.json():
+            user = response.json()[0]
+            
+            # Crear un embed visualmente atractivo
+            embed = discord.Embed(
+                title=f"Perfil de osu! de {user['username']}",
+                url=f"https://osu.ppy.sh/users/{user['user_id']}",
+                color=0xff66aa
+            )
+            embed.set_thumbnail(url=f"https://a.ppy.sh/{user['user_id']}")
+            
+            # Añadir campos importantes
+            info_fields = [
+                ("🎮 Username", user['username'], True),
+                ("🏆 PP Rank", user['pp_rank'], True),
+                ("✨ Level", user['level'], True),
+                ("🔹 Accuracy", f"{float(user['accuracy']):.2f}%", True),
+                ("🕹️ Playcount", user['playcount'], True),
+                ("💯 Total Score", user['total_score'], True)
+            ]
+            
+            for name, value, inline in info_fields:
+                embed.add_field(name=name, value=value, inline=inline)
+            
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send(f"⚠ No se encontró el perfil de osu! para el usuario: {username}")
+    except Exception as e:
+        await ctx.send("🔴 Error al buscar el perfil de osu!. Intenta nuevamente.")
+        print(f"Error en osu: {e}")
+
+@bot.command()
 async def ayuda(ctx):
     """Muestra todos los comandos disponibles"""
     embed = discord.Embed(
@@ -221,7 +264,8 @@ async def ayuda(ctx):
         name="👥 **Social**",
         value=(
             "`/ship <usuario1> <usuario2>` - Calcula la compatibilidad entre dos usuarios\n"
-            "`/perfil [usuario]` - Muestra el perfil de un usuario"
+            "`/perfil [usuario]` - Muestra el perfil de un usuario\n"
+            "`/osu <username>` - Busca información del perfil de osu!"
         ),
         inline=False
     )
