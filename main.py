@@ -185,6 +185,17 @@ async def perfil(ctx, usuario: discord.Member = None):
     await ctx.send(embed=embed)
 
 @bot.command()
+async def ship(ctx, usuario1: discord.Member, usuario2: discord.Member):
+    """Calcula la compatibilidad entre dos usuarios"""
+    porcentaje = random.randint(0, 100)
+    embed = discord.Embed(
+        title="💖 Compatibilidad 💖",
+        description=f"La compatibilidad entre {usuario1.mention} y {usuario2.mention} es de {porcentaje}%",
+        color=discord.Color.pink()
+    )
+    await ctx.send(embed=embed)
+
+@bot.command()
 async def ayuda(ctx):
     """Muestra todos los comandos disponibles"""
     embed = discord.Embed(
@@ -201,6 +212,16 @@ async def ayuda(ctx):
             "`/añadir <nombre>` - Añade un anime a tu lista\n"
             "`/lista` - Muestra tu lista de animes\n"
             "`/elegir` - Elige un anime aleatorio"
+        ),
+        inline=False
+    )
+    
+    # Comandos sociales
+    embed.add_field(
+        name="👥 **Social**",
+        value=(
+            "`/ship <usuario1> <usuario2>` - Calcula la compatibilidad entre dos usuarios\n"
+            "`/perfil [usuario]` - Muestra el perfil de un usuario"
         ),
         inline=False
     )
