@@ -162,6 +162,7 @@ async def eliminar(ctx, index: int):
         await ctx.send(f"⚠ Ingresa un número entre 1 y {len(anime_list)}")
 
 @bot.command()
+@commands.has_permissions(administrator=True)
 async def limpiar(ctx):
     """Elimina todos los animes de tu lista"""
     if not anime_list:
@@ -170,6 +171,42 @@ async def limpiar(ctx):
     
     anime_list.clear()
     await ctx.send("🧹 ¡Lista limpiada correctamente!")
+
+@bot.command()
+async def help(ctx):
+    """Muestra todos los comandos disponibles"""
+    embed = discord.Embed(
+        title="🎌 **Ayuda del Bot de Anime**",
+        description="Lista de comandos disponibles:\n(Prefijo: `/`)",
+        color=0x2b2d31  # Color gris oscuro de Discord
+    )
+    
+    # Comandos generales
+    embed.add_field(
+        name="🔍 **Búsqueda**",
+        value=(
+            "`/buscaranime <nombre>` - Busca información de un anime\n"
+            "`/añadir <nombre>` - Añade un anime a tu lista\n"
+            "`/lista` - Muestra tu lista de animes\n"
+            "`/elegir` - Elige un anime aleatorio"
+        ),
+        inline=False
+    )
+    
+    # Comandos de moderación (si los tienes)
+    embed.add_field(
+        name="⚙️ **Moderación** (Solo staff)",
+        value=(
+            "`/eliminar <número>` - Elimina un anime de la lista\n"
+            "`/limpiar` - Vacía toda la lista"
+        ),
+        inline=False
+    )
+    
+    # Pie de página
+    embed.set_footer(text=f"Pedido por {ctx.author.name}", icon_url=ctx.author.avatar.url)
+    
+    await ctx.send(embed=embed)
 
 # Iniciar el bot
 bot.run(key.DISCORD_TOKEN)
