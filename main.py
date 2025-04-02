@@ -111,7 +111,7 @@ async def leave(ctx):
 # ------------------------------------------
 
 @bot.command(name="help", aliases=["ayuda"])
-async def help(ctx):
+async def ayuda(ctx):
     """Muestra todos los comandos disponibles"""
     embed = discord.Embed(
         title="🌟 Menú de Ayuda",
