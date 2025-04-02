@@ -29,9 +29,12 @@ async def generar_imagen_ship(usuario1, usuario2, porcentaje):
         img = Image.new('RGB', (img_width, img_height), color=(47, 49, 54))
         draw = ImageDraw.Draw(img)
         
-        # Descargar avatares
-        avatar1 = Image.open(BytesIO(requests.get(usuario1.avatar.url).content)).resize((80, 80))
-        avatar2 = Image.open(BytesIO(requests.get(usuario2.avatar.url).content)).resize((80, 80))
+        # Descargar avatares (CORRECCIÓN AQUÍ)
+        avatar1_bytes = BytesIO(requests.get(usuario1.avatar.url).content)
+        avatar1 = Image.open(avatar1_bytes).resize((80, 80))
+        
+        avatar2_bytes = BytesIO(requests.get(usuario2.avatar.url).content)
+        avatar2 = Image.open(avatar2_bytes).resize((80, 80))
         
         # Pegar avatares
         img.paste(avatar1, (80, 50))
@@ -41,7 +44,7 @@ async def generar_imagen_ship(usuario1, usuario2, porcentaje):
         draw.text((200, 60), "❤️", font=ImageFont.load_default(size=30))
         
         # Barra de porcentaje
-        bar_width = 300 * (porcentaje/100)
+        bar_width = int(300 * (porcentaje/100))
         draw.rectangle((50, 150, 50 + bar_width, 160), fill=(255, 105, 180))
         draw.rectangle((50, 150, 350, 160), outline=(255, 255, 255))
         
