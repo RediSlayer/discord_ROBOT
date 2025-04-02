@@ -6,60 +6,51 @@ import key
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 
-# Configuración del bot
+# Configuración inicial
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="/", intents=intents)
+
+# Variable para el prefijo (se puede cambiar dinámicamente)
+BOT_PREFIX = "/"
+bot = commands.Bot(
+    command_prefix=BOT_PREFIX,
+    intents=intents,
+    help_command=None,  # Desactivamos el help integrado
+    activity=discord.Activity(type=discord.ActivityType.watching, name="Usa /ayuda")
+)
 
 # Lista para almacenar animes
 anime_list = []
 
-# URL de fondo para el shipómetro
-SHIP_BACKGROUND = "https://i.imgur.com/W9qVd7R.png"  # Imagen mejorada para el fondo
-
 async def generar_imagen_ship(usuario1, usuario2, porcentaje):
-    """Genera una imagen atractiva para el shipómetro"""
+    """Genera imagen para el comando ship"""
     try:
-        # Descargar recursos
-        fondo = Image.open(BytesIO(requests.get(SHIP_BACKGROUND).content)).convert("RGBA")
-        avatar1 = Image.open(BytesIO(requests.get(usuario1.avatar.url).content)).convert("RGBA")
-        avatar2 = Image.open(BytesIO(requests.get(usuario2.avatar.url).content)).convert("RGBA")
+        # Crear imagen base
+        img = Image.new('RGB', (400, 200), color=(54, 57, 63))
+        draw = ImageDraw.Draw(img)
         
-        # Redimensionar
-        fondo = fondo.resize((600, 300))
-        avatar1 = avatar1.resize((120, 120))
-        avatar2 = avatar2.resize((120, 120))
+        # Descargar y redimensionar avatares
+        avatar1 = Image.open(BytesIO(requests.get(usuario1.avatar.url).content).resize((80, 80))
+        avatar2 = Image.open(BytesIO(requests.get(usuario2.avatar.url).content).resize((80, 80))
         
-        # Crear máscara circular para avatares
-        mask = Image.new("L", (120, 120), 0)
-        draw = ImageDraw.Draw(mask)
-        draw.ellipse((0, 0, 120, 120), fill=255)
+        # Posicionar avatares
+        img.paste(avatar1, (60, 50))
+        img.paste(avatar2, (260, 50))
         
-        # Pegar elementos
-        fondo.paste(avatar1, (90, 90), mask)
-        fondo.paste(avatar2, (390, 90), mask)
+        # Dibujar corazón entre los avatares
+        draw.text((190, 60), "❤️", font=ImageFont.load_default(size=30))
         
-        # Dibujar texto
-        draw = ImageDraw.Draw(fondo)
-        try:
-            font = ImageFont.truetype("arial.ttf", 30)
-        except:
-            font = ImageFont.load_default()
+        # Barra de porcentaje
+        bar_width = int(300 * (porcentaje/100))
+        draw.rectangle((50, 150, 50 + bar_width, 160), fill=(255, 105, 180))
+        draw.rectangle((50, 150, 350, 160), outline=(200, 200, 200))
         
-        # Texto central con porcentaje
-        draw.text((300, 30), f"{porcentaje}%", fill=(255, 105, 180), font=font, anchor="mm")
-        
-        # Nombres de usuarios
-        draw.text((150, 220), usuario1.name[:12], fill="white", font=font, anchor="mm")
-        draw.text((450, 220), usuario2.name[:12], fill="white", font=font, anchor="mm")
-        
-        # Barra de compatibilidad
-        bar_width = int(400 * (porcentaje/100))
-        draw.rectangle((100, 250, 100 + bar_width, 270), fill=(255, 105, 180))
+        # Texto de porcentaje
+        draw.text((200, 165), f"{porcentaje}%", fill=(255, 255, 255))
         
         # Guardar imagen
         img_bytes = BytesIO()
-        fondo.save(img_bytes, format="PNG")
+        img.save(img_bytes, format='PNG')
         img_bytes.seek(0)
         return img_bytes
         
@@ -78,54 +69,42 @@ async def ship(ctx, usuario1: discord.Member, usuario2: discord.Member):
     imagen = await generar_imagen_ship(usuario1, usuario2, porcentaje)
     
     if imagen:
-        embed = discord.Embed(title="💘 Shipómetro", color=discord.Color.pink())
-        embed.add_field(name="Compatibilidad", value=f"**{porcentaje}%**", inline=False)
-        embed.set_image(url="attachment://ship.png")
-        await ctx.send(embed=embed, file=discord.File(imagen, "ship.png"))
+        file = discord.File(imagen, filename="ship.png")
+        await ctx.send(file=file)
     else:
-        await ctx.send(f"💞 {usuario1.mention} + {usuario2.mention} = {porcentaje}% de compatibilidad")
+        await ctx.send(f"💞 Compatibilidad: {porcentaje}%")
 
 @bot.command()
 async def perfil(ctx, usuario: discord.Member = None):
-    """Muestra información de un usuario"""
+    """Muestra el perfil de un usuario"""
     usuario = usuario or ctx.author
-    
-    embed = discord.Embed(
-        title=f"👤 Perfil de {usuario.display_name}",
-        color=usuario.color if usuario.color else discord.Color.blue()
-    )
-    
-    embed.set_thumbnail(url=usuario.avatar.url)
-    
-    embed.add_field(name="🆔 ID", value=usuario.id, inline=True)
-    embed.add_field(name="📅 Creación", value=usuario.created_at.strftime("%d/%m/%Y"), inline=True)
-    
-    if isinstance(usuario, discord.Member):
-        embed.add_field(name="📌 Ingreso", value=usuario.joined_at.strftime("%d/%m/%Y"), inline=True)
-        embed.add_field(name="🎭 Roles", value=len(usuario.roles)-1, inline=True)  # Resta 1 para omitir @everyone
-        embed.add_field(name="🚀 Máximo rol", value=usuario.top_role.name, inline=True)
-    
-    embed.set_footer(text=f"Solicitado por {ctx.author.name}", icon_url=ctx.author.avatar.url)
-    
+    embed = discord.Embed(color=discord.Color.blue())
+    embed.set_author(name=usuario.name)
+    embed.set_image(url=usuario.avatar.url)
     await ctx.send(embed=embed)
 
-# [Aquí van todos tus comandos originales de anime (buscaranime, añadir, elegir, etc.)]
-# ... (mantén exactamente los mismos comandos que ya tenías)
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def prefix(ctx, nuevo_prefijo: str):
+    """Cambia el prefijo del bot (Solo admins)"""
+    global BOT_PREFIX
+    BOT_PREFIX = nuevo_prefijo
+    bot.command_prefix = BOT_PREFIX
+    await ctx.send(f"✅ Prefijo cambiado a: `{nuevo_prefijo}`")
 
 @bot.command()
 async def ayuda(ctx):
     """Muestra todos los comandos disponibles"""
     embed = discord.Embed(
-        title="🎌 **Ayuda del Bot**",
-        description="Todos los comandos disponibles:",
+        title=f"📝 Comandos disponibles (Prefijo: `{BOT_PREFIX}`)",
         color=0x5865F2
     )
     
     embed.add_field(
         name="💘 Social",
         value=(
-            "`/ship @usuario1 @usuario2` - Calcula compatibilidad\n"
-            "`/perfil [@usuario]` - Muestra información"
+            f"`{BOT_PREFIX}ship @usuario1 @usuario2`\n"
+            f"`{BOT_PREFIX}perfil [@usuario]`"
         ),
         inline=False
     )
@@ -133,24 +112,24 @@ async def ayuda(ctx):
     embed.add_field(
         name="🔍 Anime",
         value=(
-            "`/buscaranime <nombre>` - Busca información\n"
-            "`/añadir <nombre>` - Añade a tu lista\n"
-            "`/lista` - Muestra tu lista\n"
-            "`/elegir` - Anime aleatorio"
+            f"`{BOT_PREFIX}buscaranime <nombre>`\n"
+            f"`{BOT_PREFIX}añadir <nombre>`\n"
+            f"`{BOT_PREFIX}lista`\n"
+            f"`{BOT_PREFIX}elegir`"
         ),
         inline=False
     )
     
     embed.add_field(
-        name="⚙️ Moderación",
-        value=(
-            "`/eliminar <número>` - Elimina anime\n"
-            "`/limpiar` - Vacía la lista (admin)"
-        ),
+        name="⚙️ Admin",
+        value=f"`{BOT_PREFIX}prefix <nuevo_prefijo>`",
         inline=False
     )
     
-    embed.set_footer(text=f"Pedido por {ctx.author.name}", icon_url=ctx.author.avatar.url)
     await ctx.send(embed=embed)
+
+# [Tus comandos originales de anime aquí...]
+# buscaranime, añadir, elegir, lista, eliminar, limpiar
+# ...
 
 bot.run(key.DISCORD_TOKEN)
