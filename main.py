@@ -264,7 +264,7 @@ async def ayuda(ctx):
         name="👥 **Social**",
         value=(
             "`/ship <usuario1> <usuario2>` - Calcula la compatibilidad entre dos usuarios\n"
-            "`/perfil [usuario]` - Muestra el perfil de un usuario\n"
+            "`/perfil <usuario>` - Muestra el perfil de un usuario\n"
             "`/osu <username>` - Busca información del perfil de osu!"
         ),
         inline=False
