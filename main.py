@@ -4,55 +4,78 @@ import requests
 import random
 import key
 from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
+import os
 
 # Configuración del bot
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(
-    command_prefix="/", 
+    command_prefix="/",
     intents=intents,
     help_command=None,
-    activity=discord.Activity(name="Usa /ayuda")
+    activity=discord.Activity(type=discord.ActivityType.watching, name="Usa /ayuda")
 )
 
-# Lista para almacenar animes (persistente mientras el bot esté activo)
+# Lista para almacenar animes
 anime_list = []
 
 async def generar_imagen_ship(usuario1, usuario2, porcentaje):
-    """Genera imagen para el comando ship"""
+    """Genera imagen para el comando ship usando ship.png como base"""
     try:
-        # Tamaño de la imagen
-        img = Image.new('RGB', (400, 200), color=(54, 57, 63))
-        draw = ImageDraw.Draw(img)
+        # Cargar imagen base
+        if os.path.exists("ship.png"):
+            base_img = Image.open("ship.png").convert('RGBA')
+        else:
+            # Si no existe, crear una imagen simple
+            base_img = Image.new('RGBA', (500, 250), (54, 57, 63, 255))
         
-        # Descargar avatares
-        avatar1 = Image.open(BytesIO(requests.get(usuario1.avatar.url).content).resize((80, 80))
-        avatar2 = Image.open(BytesIO(requests.get(usuario2.avatar.url).content).resize((80, 80))
+        # Procesar avatares
+        def procesar_avatar(url):
+            response = requests.get(url, timeout=10)
+            avatar = Image.open(BytesIO(response.content)).convert('RGBA')
+            avatar = ImageOps.fit(avatar, (120, 120), method=Image.LANCZOS)
+            
+            # Crear máscara circular
+            mask = Image.new('L', (120, 120), 0)
+            draw = ImageDraw.Draw(mask)
+            draw.ellipse((0, 0, 120, 120), fill=255)
+            
+            return avatar, mask
+
+        try:
+            avatar1, mask1 = procesar_avatar(usuario1.display_avatar.url)
+            avatar2, mask2 = procesar_avatar(usuario2.display_avatar.url)
+        except Exception as e:
+            print(f"Error descargando avatares: {e}")
+            return None
+
+        # Pegar avatares en posiciones específicas
+        base_img.paste(avatar1, (100, 80), mask1)
+        base_img.paste(avatar2, (280, 80), mask2)
         
-        # Pegar avatares
-        img.paste(avatar1, (80, 50))
-        img.paste(avatar2, (240, 50))
+        # Dibujar porcentaje
+        draw = ImageDraw.Draw(base_img)
+        try:
+            font = ImageFont.truetype("arial.ttf", 36)
+        except:
+            font = ImageFont.load_default()
         
-        # Dibujar corazón
-        draw.text((200, 60), "❤️", font=ImageFont.load_default(size=30))
-        
-        # Barra de porcentaje
+        # Barra de compatibilidad
         bar_width = int(300 * (porcentaje/100))
-        draw.rectangle((50, 150, 50 + bar_width, 160), fill=(255, 105, 180))
-        draw.rectangle((50, 150, 350, 160), outline=(255, 255, 255))
+        draw.rectangle((100, 200, 100 + bar_width, 210), fill=(255, 105, 180))
         
         # Texto de porcentaje
-        draw.text((200, 165), f"{porcentaje}%", fill=(255, 255, 255))
+        draw.text((250, 170), f"{porcentaje}%", font=font, fill=(255, 255, 255), anchor="mm")
         
         # Guardar imagen
         img_bytes = BytesIO()
-        img.save(img_bytes, format='PNG')
+        base_img.save(img_bytes, format='PNG')
         img_bytes.seek(0)
         return img_bytes
         
     except Exception as e:
-        print(f"Error generando imagen: {e}")
+        print(f"Error generando imagen ship: {e}")
         return None
 
 @bot.event
@@ -61,219 +84,41 @@ async def on_ready():
 
 @bot.command()
 async def ship(ctx, usuario1: discord.Member, usuario2: discord.Member):
-    """Calcula la compatibilidad entre dos usuarios"""
+    """Calcula la compatibilidad entre dos usuarios 💘"""
+    if usuario1 == usuario2:
+        return await ctx.send("¡No puedes shipearte contigo mismo! 😅")
+    
     porcentaje = random.randint(0, 100)
     imagen = await generar_imagen_ship(usuario1, usuario2, porcentaje)
     
     if imagen:
-        file = discord.File(imagen, filename="ship.png")
-        await ctx.send(file=file)
+        embed = discord.Embed(
+            title=f"💕 Compatibilidad: {porcentaje}%",
+            description=f"{usuario1.mention} ❤️ {usuario2.mention}",
+            color=0xff66b2
+        )
+        embed.set_image(url="attachment://ship_result.png")
+        await ctx.send(embed=embed, file=discord.File(imagen, filename="ship_result.png"))
     else:
-        await ctx.send(f"💞 Compatibilidad: {porcentaje}%")
+        await ctx.send(f"💞 {usuario1.display_name} + {usuario2.display_name} = {porcentaje}%")
 
 @bot.command()
 async def perfil(ctx, usuario: discord.Member = None):
-    """Muestra el perfil de un usuario"""
+    """Muestra el perfil de un usuario 👤"""
     usuario = usuario or ctx.author
     
-    embed = discord.Embed(color=discord.Color.blue())
-    embed.set_author(name=usuario.name)
-    embed.set_image(url=usuario.avatar.url)
-    
+    embed = discord.Embed(
+        title=f"Perfil de {usuario.display_name}",
+        color=usuario.color if usuario.color else discord.Color.blue()
+    )
+    embed.set_image(url=usuario.display_avatar.url)
     await ctx.send(embed=embed)
 
 # [Tus comandos originales de anime aquí...]
-@bot.command()
-async def buscaranime(ctx, *, name):
-    """Busca información detallada de un anime"""
-    try:
-        response = requests.get(f"https://api.jikan.moe/v4/anime?q={name}&limit=1")
-        
-        if response.status_code == 200 and response.json()["data"]:
-            anime = response.json()["data"][0]
-            
-            embed = discord.Embed(
-                title=anime["title"],
-                url=anime["url"],
-                description=anime.get("synopsis", "Descripción no disponible")[:400] + "...",
-                color=0x3498db
-            )
-            embed.set_thumbnail(url=anime["images"]["jpg"]["image_url"])
-            
-            info_fields = [
-                ("📆 Año", anime.get("year", "Desconocido"), True),
-                ("⭐ Puntuación", anime.get("score", "Sin puntuación"), True),
-                ("📺 Episodios", anime.get("episodes", "Desconocido"), True),
-                ("📌 Estado", anime.get("status", "Desconocido"), True),
-                ("🌀 Tipo", anime.get("type", "Desconocido"), True),
-                ("⏱ Duración", anime.get("duration", "Desconocido"), True)
-            ]
-            
-            for name, value, inline in info_fields:
-                embed.add_field(name=name, value=value, inline=inline)
-            
-            await ctx.send(embed=embed)
-        else:
-            await ctx.send(f"⚠ No se encontró el anime: {name}")
-    except Exception as e:
-        await ctx.send("🔴 Error al buscar el anime. Intenta nuevamente.")
-        print(f"Error en buscaranime: {e}")
-
-@bot.command()
-async def añadir(ctx, *, name):
-    """Añade un anime a tu lista personal"""
-    try:
-        response = requests.get(f"https://api.jikan.moe/v4/anime?q={name}&limit=1")
-        
-        if response.status_code == 200 and response.json()["data"]:
-            anime = response.json()["data"][0]
-            
-            if any(a["title"] == anime["title"] for a in anime_list):
-                await ctx.send(f"❌ {anime['title']} ya está en tu lista!")
-                return
-            
-            anime_data = {
-                "title": anime["title"],
-                "year": anime.get("year", "Desconocido"),
-                "score": anime.get("score", "Sin puntuación"),
-                "url": anime["url"],
-                "image": anime["images"]["jpg"]["image_url"],
-                "added_by": ctx.author.name
-            }
-            
-            anime_list.append(anime_data)
-            
-            embed = discord.Embed(
-                title=f"✅ {anime_data['title']} añadido!",
-                description=f"Añadido por: {ctx.author.mention}",
-                color=0x2ecc71
-            )
-            embed.set_thumbnail(url=anime_data["image"])
-            embed.add_field(name="⭐ Puntuación", value=anime_data["score"], inline=True)
-            embed.add_field(name="📆 Año", value=anime_data["year"], inline=True)
-            
-            await ctx.send(embed=embed)
-        else:
-            await ctx.send(f"⚠ No se pudo encontrar: {name}")
-    except Exception as e:
-        await ctx.send("🔴 Error al añadir el anime. Intenta nuevamente.")
-        print(f"Error en añadir: {e}")
-
-@bot.command()
-async def elegir(ctx):
-    """Elige un anime aleatorio de tu lista"""
-    if not anime_list:
-        await ctx.send("📭 Tu lista está vacía. Usa `/añadir` para agregar animes!")
-        return
-    
-    anime = random.choice(anime_list)
-    
-    embed = discord.Embed(
-        title=f"🎲 Anime seleccionado: {anime['title']}",
-        url=anime["url"],
-        color=0xe91e63
-    )
-    embed.set_thumbnail(url=anime["image"])
-    embed.add_field(name="⭐ Puntuación", value=anime["score"], inline=True)
-    embed.add_field(name="📆 Año", value=anime["year"], inline=True)
-    embed.set_footer(text=f"Añadido por: {anime.get('added_by', 'Desconocido')}")
-    
-    await ctx.send(embed=embed)
-
-@bot.command()
-async def lista(ctx):
-    """Muestra todos los animes en tu lista"""
-    if not anime_list:
-        await ctx.send("📭 Tu lista de animes está vacía.")
-        return
-    
-    embed = discord.Embed(
-        title=f"📚 Tu lista de animes ({len(anime_list)})",
-        color=0xf39c12
-    )
-    
-    for i, anime in enumerate(anime_list, 1):
-        embed.add_field(
-            name=f"{i}. {anime['title']}",
-            value=f"⭐ {anime['score']} | 📆 {anime['year']} | 👤 {anime.get('added_by', 'Desconocido')}",
-            inline=False
-        )
-    
-    await ctx.send(embed=embed)
-
-@bot.command()
-async def eliminar(ctx, index: int):
-    """Elimina un anime de tu lista por su número"""
-    if not anime_list:
-        await ctx.send("📭 Tu lista está vacía!")
-        return
-    
-    if 1 <= index <= len(anime_list):
-        removed = anime_list.pop(index-1)
-        
-        embed = discord.Embed(
-            title=f"❌ {removed['title']} eliminado",
-            color=0xe74c3c
-        )
-        embed.add_field(name="Puntuación", value=removed["score"], inline=True)
-        embed.add_field(name="Año", value=removed["year"], inline=True)
-        embed.set_thumbnail(url=removed["image"])
-        
-        await ctx.send(embed=embed)
-    else:
-        await ctx.send(f"⚠ Ingresa un número entre 1 y {len(anime_list)}")
-
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def limpiar(ctx):
-    """Elimina todos los animes de tu lista"""
-    if not anime_list:
-        await ctx.send("📭 La lista ya está vacía!")
-        return
-    
-    anime_list.clear()
-    await ctx.send("🧹 ¡Lista limpiada correctamente!")
-
-@bot.command()
-async def ayuda(ctx):
-    """Muestra todos los comandos disponibles"""
-    embed = discord.Embed(
-        title="🎌 **Ayuda del Bot de Anime**",
-        description="Lista de comandos disponibles:\n(Prefijo: `/`)",
-        color=0x2b2d31
-    )
-    
-    embed.add_field(
-        name="🔍 **Búsqueda**",
-        value=(
-            "`/buscaranime <nombre>` - Busca información de un anime\n"
-            "`/añadir <nombre>` - Añade un anime a tu lista\n"
-            "`/lista` - Muestra tu lista de animes\n"
-            "`/elegir` - Elige un anime aleatorio"
-        ),
-        inline=False
-    )
-    
-    embed.add_field(
-        name="💘 **Social**",
-        value=(
-            "`/ship @usuario1 @usuario2` - Calcula compatibilidad\n"
-            "`/perfil [@usuario]` - Muestra perfil de usuario"
-        ),
-        inline=False
-    )
-    
-    embed.add_field(
-        name="⚙️ **Moderación** (Solo staff)",
-        value=(
-            "`/eliminar <número>` - Elimina un anime de la lista\n"
-            "`/limpiar` - Vacía toda la lista"
-        ),
-        inline=False
-    )
-    
-    embed.set_footer(text=f"Pedido por {ctx.author.name}", icon_url=ctx.author.avatar.url)
-    
-    await ctx.send(embed=embed)
+# @bot.command()
+# async def buscaranime...
+# @bot.command()
+# async def añadir...
+# etc...
 
 bot.run(key.DISCORD_TOKEN)
