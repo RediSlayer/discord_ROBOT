@@ -1,213 +1,153 @@
 import discord
 from discord.ext import commands
-import requests
 import random
-import key  # Importamos el archivo key.py con el token
+import requests
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
+import yt_dlp
+import os
 
-# Configuración del bot
+# Configuración del bot con prefijo /
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="/", intents=intents)
+bot = commands.Bot(command_prefix="/", intents=intents, help_command=None)
 
-# Lista para almacenar animes (persistente mientras el bot esté activo)
-anime_list = []
+# Variables globales
+FONDO_URL = "https://media.tenor.com/BXDrQy1pBp8AAAAd/heart-love.gif"
+
+# ------------------------------------------
+# Funciones auxiliares
+# ------------------------------------------
+
+async def generar_imagen(usuario1, usuario2, porcentaje):
+    """Genera imagen para el comando ship"""
+    response = requests.get(FONDO_URL)
+    fondo = Image.open(BytesIO(response.content)).convert("RGBA").resize((500, 250))
+    
+    avatar1 = Image.open(BytesIO(requests.get(usuario1.avatar.url).content)).convert("RGBA").resize((100, 100))
+    avatar2 = Image.open(BytesIO(requests.get(usuario2.avatar.url).content)).convert("RGBA").resize((100, 100))
+    
+    fondo.paste(avatar1, (50, 75), avatar1)
+    fondo.paste(avatar2, (350, 75), avatar2)
+    
+    draw = ImageDraw.Draw(fondo)
+    try:
+        font = ImageFont.truetype("arial.ttf", 24)
+    except:
+        font = ImageFont.load_default()
+    
+    textos = [
+        (f"Compatibilidad: {porcentaje}%", (200, 20)),
+        (usuario1.name, (50, 180)),
+        (usuario2.name, (350, 180))
+    ]
+    
+    for texto, pos in textos:
+        draw.text(pos, texto, fill="white", font=font)
+    
+    img_bytes = BytesIO()
+    fondo.save(img_bytes, format="PNG")
+    img_bytes.seek(0)
+    return img_bytes
+
+# ------------------------------------------
+# Comandos
+# ------------------------------------------
+
+@bot.command()
+async def ship(ctx, usuario1: discord.Member, usuario2: discord.Member):
+    """Calcula la compatibilidad entre dos usuarios con imagen"""
+    porcentaje = random.randint(0, 100)
+    imagen = await generar_imagen(usuario1, usuario2, porcentaje)
+    
+    embed = discord.Embed(title="💘 Shipómetro", color=discord.Color.pink())
+    embed.add_field(name="Personas", value=f"{usuario1.mention} ❤️ {usuario2.mention}", inline=False)
+    embed.add_field(name="Compatibilidad", value=f"**{porcentaje}%**", inline=False)
+    embed.set_footer(text="¡Que viva el amor!")
+    
+    await ctx.send(embed=embed, file=discord.File(imagen, "ship.png"))
+
+@bot.command()
+async def perfil(ctx, usuario: discord.Member = None):
+    """Muestra información de un usuario"""
+    usuario = usuario or ctx.author
+    embed = discord.Embed(title=f"👤 Perfil de {usuario.name}", color=discord.Color.blue())
+    embed.set_thumbnail(url=usuario.avatar.url)
+    embed.add_field(name="🆔 ID", value=usuario.id, inline=True)
+    embed.add_field(name="📅 Creación", value=usuario.created_at.strftime("%d/%m/%Y"), inline=True)
+    embed.add_field(name="📌 Ingreso", value=usuario.joined_at.strftime("%d/%m/%Y"), inline=True)
+    await ctx.send(embed=embed)
+
+@bot.command()
+async def play(ctx, *, titulo: str):
+    """Reproduce audio de YouTube"""
+    if not ctx.author.voice:
+        return await ctx.send("🔇 Debes estar en un canal de voz")
+    
+    channel = ctx.author.voice.channel
+    vc = await channel.connect() if not ctx.voice_client else ctx.voice_client
+    
+    ydl_opts = {"format": "bestaudio", "quiet": True}
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(f"ytsearch:{titulo}", download=False)["entries"][0]
+    
+    vc.play(discord.FFmpegPCMAudio(info["url"], options="-vn"))
+    
+    embed = discord.Embed(title="🎵 Reproduciendo", description=f"**{info['title']}**", color=0x1DB954)
+    embed.set_thumbnail(url=info["thumbnail"])
+    await ctx.send(embed=embed)
+
+@bot.command()
+async def leave(ctx):
+    """Desconecta al bot de voz"""
+    if ctx.voice_client:
+        await ctx.voice_client.disconnect()
+        await ctx.send("🔇 Desconectado del canal de voz")
+    else:
+        await ctx.send("🤖 No estoy en ningún canal de voz")
+
+# ------------------------------------------
+# Comando Help mejorado
+# ------------------------------------------
+
+@bot.command(name="help", aliases=["ayuda"])
+async def help(ctx):
+    """Muestra todos los comandos disponibles"""
+    embed = discord.Embed(
+        title="🌟 Menú de Ayuda",
+        description="Todos los comandos disponibles:",
+        color=0x5865F2
+    )
+    
+    embed.add_field(
+        name="💘 Comandos Sociales",
+        value=(
+            "`/ship @usuario1 @usuario2` - Calcula compatibilidad\n"
+            "`/perfil [@usuario]` - Muestra información de usuario"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="🎵 Comandos de Música",
+        value=(
+            "`/play <título>` - Reproduce música\n"
+            "`/leave` - Desconecta al bot"
+        ),
+        inline=False
+    )
+    
+    embed.set_footer(text=f"Pedido por {ctx.author.name}", icon_url=ctx.author.avatar.url)
+    await ctx.send(embed=embed)
+
+# ------------------------------------------
+# Eventos
+# ------------------------------------------
 
 @bot.event
 async def on_ready():
-    print(f'✅ Bot conectado como {bot.user.name}')
+    print(f"✅ Bot conectado como {bot.user.name}")
+    await bot.change_presence(activity=discord.Game(name="/help"))
 
-@bot.command()
-async def buscaranime(ctx, *, name):
-    """Busca información detallada de un anime"""
-    try:
-        response = requests.get(f"https://api.jikan.moe/v4/anime?q={name}&limit=1")
-        
-        if response.status_code == 200 and response.json()["data"]:
-            anime = response.json()["data"][0]
-            
-            # Crear un embed visualmente atractivo
-            embed = discord.Embed(
-                title=anime["title"],
-                url=anime["url"],
-                description=anime.get("synopsis", "Descripción no disponible")[:400] + "...",
-                color=0x3498db
-            )
-            embed.set_thumbnail(url=anime["images"]["jpg"]["image_url"])
-            
-            # Añadir campos importantes
-            info_fields = [
-                ("📆 Año", anime.get("year", "Desconocido"), True),
-                ("⭐ Puntuación", anime.get("score", "Sin puntuación"), True),
-                ("📺 Episodios", anime.get("episodes", "Desconocido"), True),
-                ("📌 Estado", anime.get("status", "Desconocido"), True),
-                ("🌀 Tipo", anime.get("type", "Desconocido"), True),
-                ("⏱ Duración", anime.get("duration", "Desconocido"), True)
-            ]
-            
-            for name, value, inline in info_fields:
-                embed.add_field(name=name, value=value, inline=inline)
-            
-            await ctx.send(embed=embed)
-        else:
-            await ctx.send(f"⚠ No se encontró el anime: {name}")
-    except Exception as e:
-        await ctx.send("🔴 Error al buscar el anime. Intenta nuevamente.")
-        print(f"Error en buscaranime: {e}")
-
-@bot.command()
-async def añadir(ctx, *, name):
-    """Añade un anime a tu lista personal"""
-    try:
-        response = requests.get(f"https://api.jikan.moe/v4/anime?q={name}&limit=1")
-        
-        if response.status_code == 200 and response.json()["data"]:
-            anime = response.json()["data"][0]
-            
-            # Verificar si el anime ya está en la lista
-            if any(a["title"] == anime["title"] for a in anime_list):
-                await ctx.send(f"❌ {anime['title']} ya está en tu lista!")
-                return
-            
-            # Guardar datos relevantes
-            anime_data = {
-                "title": anime["title"],
-                "year": anime.get("year", "Desconocido"),
-                "score": anime.get("score", "Sin puntuación"),
-                "url": anime["url"],
-                "image": anime["images"]["jpg"]["image_url"],
-                "added_by": ctx.author.name
-            }
-            
-            anime_list.append(anime_data)
-            
-            # Mensaje de confirmación con embed
-            embed = discord.Embed(
-                title=f"✅ {anime_data['title']} añadido!",
-                description=f"Añadido por: {ctx.author.mention}",
-                color=0x2ecc71
-            )
-            embed.set_thumbnail(url=anime_data["image"])
-            embed.add_field(name="⭐ Puntuación", value=anime_data["score"], inline=True)
-            embed.add_field(name="📆 Año", value=anime_data["year"], inline=True)
-            
-            await ctx.send(embed=embed)
-        else:
-            await ctx.send(f"⚠ No se pudo encontrar: {name}")
-    except Exception as e:
-        await ctx.send("🔴 Error al añadir el anime. Intenta nuevamente.")
-        print(f"Error en añadir: {e}")
-
-@bot.command()
-async def elegir(ctx):
-    """Elige un anime aleatorio de tu lista"""
-    if not anime_list:
-        await ctx.send("📭 Tu lista está vacía. Usa `/añadir` para agregar animes!")
-        return
-    
-    anime = random.choice(anime_list)
-    
-    embed = discord.Embed(
-        title=f"🎲 Anime seleccionado: {anime['title']}",
-        url=anime["url"],
-        color=0xe91e63
-    )
-    embed.set_thumbnail(url=anime["image"])
-    embed.add_field(name="⭐ Puntuación", value=anime["score"], inline=True)
-    embed.add_field(name="📆 Año", value=anime["year"], inline=True)
-    embed.set_footer(text=f"Añadido por: {anime.get('added_by', 'Desconocido')}")
-    
-    await ctx.send(embed=embed)
-
-@bot.command()
-async def lista(ctx):
-    """Muestra todos los animes en tu lista"""
-    if not anime_list:
-        await ctx.send("📭 Tu lista de animes está vacía.")
-        return
-    
-    embed = discord.Embed(
-        title=f"📚 Tu lista de animes ({len(anime_list)})",
-        color=0xf39c12
-    )
-    
-    for i, anime in enumerate(anime_list, 1):
-        embed.add_field(
-            name=f"{i}. {anime['title']}",
-            value=f"⭐ {anime['score']} | 📆 {anime['year']} | 👤 {anime.get('added_by', 'Desconocido')}",
-            inline=False
-        )
-    
-    await ctx.send(embed=embed)
-
-@bot.command()
-async def eliminar(ctx, index: int):
-    """Elimina un anime de tu lista por su número"""
-    if not anime_list:
-        await ctx.send("📭 Tu lista está vacía!")
-        return
-    
-    if 1 <= index <= len(anime_list):
-        removed = anime_list.pop(index-1)
-        
-        embed = discord.Embed(
-            title=f"❌ {removed['title']} eliminado",
-            color=0xe74c3c
-        )
-        embed.add_field(name="Puntuación", value=removed["score"], inline=True)
-        embed.add_field(name="Año", value=removed["year"], inline=True)
-        embed.set_thumbnail(url=removed["image"])
-        
-        await ctx.send(embed=embed)
-    else:
-        await ctx.send(f"⚠ Ingresa un número entre 1 y {len(anime_list)}")
-
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def limpiar(ctx):
-    """Elimina todos los animes de tu lista"""
-    if not anime_list:
-        await ctx.send("📭 La lista ya está vacía!")
-        return
-    
-    anime_list.clear()
-    await ctx.send("🧹 ¡Lista limpiada correctamente!")
-
-@bot.command()
-async def ayuda(ctx):
-    """Muestra todos los comandos disponibles"""
-    embed = discord.Embed(
-        title="🎌 **Ayuda del Bot de Anime**",
-        description="Lista de comandos disponibles:\n(Prefijo: `/`)",
-        color=0x2b2d31  # Color gris oscuro de Discord
-    )
-    
-    # Comandos generales
-    embed.add_field(
-        name="🔍 **Búsqueda**",
-        value=(
-            "`/buscaranime <nombre>` - Busca información de un anime\n"
-            "`/añadir <nombre>` - Añade un anime a tu lista\n"
-            "`/lista` - Muestra tu lista de animes\n"
-            "`/elegir` - Elige un anime aleatorio"
-        ),
-        inline=False
-    )
-    
-    # Comandos de moderación (si los tienes)
-    embed.add_field(
-        name="⚙️ **Moderación** (Solo staff)",
-        value=(
-            "`/eliminar <número>` - Elimina un anime de la lista\n"
-            "`/limpiar` - Vacía toda la lista"
-        ),
-        inline=False
-    )
-    
-    # Pie de página
-    embed.set_footer(text=f"Pedido por {ctx.author.name}", icon_url=ctx.author.avatar.url)
-    
-    await ctx.send(embed=embed)
-
-# Iniciar el bot
-bot.run(key.DISCORD_TOKEN)
-
+# Iniciar bot
+bot.run(os.getenv("DISCORD_TOKEN"))
