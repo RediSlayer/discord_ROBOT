@@ -173,7 +173,7 @@ async def limpiar(ctx):
     await ctx.send("🧹 ¡Lista limpiada correctamente!")
 
 @bot.command()
-async def help(ctx):
+async def ayuda(ctx):
     """Muestra todos los comandos disponibles"""
     embed = discord.Embed(
         title="🎌 **Ayuda del Bot de Anime**",
