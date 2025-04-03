@@ -21,6 +21,23 @@ bot = commands.Bot(
 anime_list = []
 music_queues = {}
 
+youtube_dl.utils.bug_reports_message = lambda: ''
+ytdl_format_options = {
+    'format': 'bestaudio/best',
+    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'restrictfilenames': True,
+    'noplaylist': True,
+    'nocheckcertificate': True,
+    'ignoreerrors': False,
+    'logtostderr': False,
+    'quiet': True,
+    'no_warnings': True,
+    'default_search': 'auto',
+    'source_address': '0.0.0.0',
+}
+ffmpeg_options = {'options': '-vn'}
+ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+
 @bot.event
 async def on_ready():
     print(f'✅ Bot conectado como {bot.user.name}')
