@@ -56,6 +56,34 @@ async def buscaranime(ctx, *, name):
         print(f"Error en buscaranime: {e}")
 
 @bot.command()
+async def randomanime(ctx, genero: str = None):
+    try:
+        response = requests.get("https://api.jikan.moe/v4/top/anime?limit=500")
+        data = response.json()
+        animes = data['data']
+
+        if genero:
+            genero = genero.lower()
+            filtrados = [a for a in animes if any(g['name'].lower() == genero for g in a['genres'])]
+            anime = random.choice(filtrados) if filtrados else random.choice(animes)
+        else:
+            anime = random.choice(animes)
+
+        embed = discord.Embed(
+            title=anime['title'],
+            url=anime['url'],
+            description=anime.get('synopsis', 'Sin sinopsis')[:400] + "...",
+            color=0x00ff00
+        )
+        embed.add_field(name="⭐ Puntuación", value=anime.get('score', 'N/A'))
+        embed.add_field(name="📺 Episodios", value=anime.get('episodes', '?'))
+        embed.set_image(url=anime['images']['jpg']['large_image_url'])
+        await ctx.send(embed=embed)
+    except Exception as e:
+        await ctx.send("🔴 Error al buscar anime aleatorio.")
+        print(f"Error: {e}")
+
+@bot.command()
 async def añadir(ctx, *, name):
     """Añade un anime a tu lista personal"""
     try:
