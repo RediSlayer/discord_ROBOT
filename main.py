@@ -4,6 +4,8 @@ import requests
 import random
 import key  # Importamos el archivo key.py con el token
 import os  # Importar os para acceder a las variables de entorno
+import yt_dlp as youtube_dl
+from discord import FFmpegPCMAudio
 
 # Configuración del bot
 intents = discord.Intents.default()
@@ -12,10 +14,60 @@ bot = commands.Bot(command_prefix="/", intents=intents)
 
 # Lista para almacenar animes (persistente mientras el bot esté activo)
 anime_list = []
+music_queues = {}
+
+# Configuración yt-dlp
+youtube_dl.utils.bug_reports_message = lambda: ''
+ytdl_format_options = {
+    'format': 'bestaudio/best',
+    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'restrictfilenames': True,
+    'noplaylist': True,
+    'nocheckcertificate': True,
+    'ignoreerrors': False,
+    'logtostderr': False,
+    'quiet': True,
+    'no_warnings': True,
+    'default_search': 'auto',
+    'source_address': '0.0.0.0',
+}
+ffmpeg_options = {'options': '-vn'}
+ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+
+# Cog de Música
+class Music(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+  @commands.command()
+    async def join(self, ctx):
+        if ctx.author.voice:
+            await ctx.author.voice.channel.connect()
+        else:
+            await ctx.send("¡Debes estar en un canal de voz!")
+
+    @commands.command()
+    async def play(self, ctx, *, query):
+        voice_client = ctx.voice_client
+        if not voice_client:
+            await ctx.invoke(self.join)
+        
+        info = ytdl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
+        voice_client.play(FFmpegPCMAudio(info['url'], **ffmpeg_options))
+        await ctx.send(f"🎵 **Reproduciendo:** {info['title']}")
+
+    @commands.command()
+    async def leave(self, ctx):
+        await ctx.voice_client.disconnect()
+        await ctx.send("✅ Desconectado del canal de voz.")
+
+async def setup(bot):
+    await bot.add_cog(Music(bot))
 
 @bot.event
 async def on_ready():
     print(f'✅ Bot conectado como {bot.user.name}')
+    await setup(bot)
 
 @bot.command()
 async def buscaranime(ctx, *, name):
