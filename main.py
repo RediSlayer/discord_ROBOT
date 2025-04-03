@@ -285,22 +285,7 @@ async def ayuda(ctx):
         title="🎌 **Ayuda del Bot**",
         description="Lista de comandos disponibles:",
         color=0x2b2d31
-    )
-    
-    embed.add_field(
-        name="🎵 **Música**",
-        value=(
-            "`/unir` - Une el bot a tu canal\n"
-            "`/play <canción>` - Reproduce música\n"
-            "`/pausa` - Pausa la reproducción\n"
-            "`/reanudar` - Reanuda la reproducción\n"
-            "`/saltar` - Salta la canción actual\n"
-            "`/cola` - Muestra la cola\n"
-            "`/leave` - Desconecta el bot"
-        ),
-        inline=False
-    )
-    
+    )    
     embed.add_field(
         name="🔍 **Búsqueda**",
         value=(
