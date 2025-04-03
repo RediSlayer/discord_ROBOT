@@ -75,7 +75,12 @@ class Music(commands.Cog):
 @bot.event
 async def on_ready():
     print(f'✅ Bot conectado como {bot.user.name}')
-    await setup(bot)
+    # Elimina o define la función setup si es necesaria
+    # await setup(bot)
+
+# Registrar el Cog
+async def setup(bot):
+    await bot.add_cog(Music(bot))
 
 # Comandos adicionales...
 
