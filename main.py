@@ -4,18 +4,89 @@ import requests
 import random
 import key  # Importamos el archivo key.py con el token
 import os  # Importar os para acceder a las variables de entorno
+import yt_dlp as youtube_dl
 
 # Configuración del bot
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="/", intents=intents)
+bot = commands.Bot(
+    command_prefix="/",
+    intents=intents,
+    help_command=None,
+    activity=discord.Activity(type=discord.ActivityType.listening, name="¿Tienes dudas? Usa /ayuda")
+)
 
 # Lista para almacenar animes (persistente mientras el bot esté activo)
 anime_list = []
+music_queues = {}
 
 @bot.event
 async def on_ready():
     print(f'✅ Bot conectado como {bot.user.name}')
+    await setup(bot)
+
+@commands.command()
+async def join(ctx):
+    if ctx.author.voice:
+        await ctx.author.voice.channel.connect()
+    else:
+        await ctx.send("¡Debes estar en un canal de voz!")
+
+@bot.command()
+async def play(ctx, *, titulo: str):
+    """Reproduce audio de YouTube"""
+    if not ctx.author.voice:
+        return await ctx.send("🔇 Debes estar en un canal de voz")
+
+    channel = ctx.author.voice.channel
+    vc = await channel.connect() if not ctx.voice_client else ctx.voice_client
+
+    ydl_opts = {"format": "bestaudio", "quiet": True}
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(f"ytsearch:{titulo}", download=False)["entries"][0]
+
+    vc.play(discord.FFmpegPCMAudio(info["url"], options="-vn"))
+
+    embed = discord.Embed(title="🎵 Reproduciendo", description=f"{info['title']}", color=0x1DB954)
+    embed.set_thumbnail(url=info["thumbnail"])
+    await ctx.send(embed=embed)
+
+@bot.command()
+async def leave(ctx):
+    """Desconecta al bot de voz"""
+    if ctx.voice_client:
+        await ctx.voice_client.disconnect()
+        await ctx.send("🔇 Desconectado del canal de voz")
+    else:
+        await ctx.send("🤖 No estoy en ningún canal de voz")
+
+@bot.command()
+async def randomanime(ctx, genero: str = None):
+    try:
+        response = requests.get("https://api.jikan.moe/v4/top/anime?limit=500")
+        data = response.json()
+        animes = data['data']
+
+        if genero:
+            genero = genero.lower()
+            filtrados = [a for a in animes if any(g['name'].lower() == genero for g in a['genres'])]
+            anime = random.choice(filtrados) if filtrados else random.choice(animes)
+        else:
+            anime = random.choice(animes)
+
+        embed = discord.Embed(
+            title=anime['title'],
+            url=anime['url'],
+            description=anime.get('synopsis', 'Sin sinopsis')[:400] + "...",
+            color=0x00ff00
+        )
+        embed.add_field(name="⭐ Puntuación", value=anime.get('score', 'N/A'))
+        embed.add_field(name="📺 Episodios", value=anime.get('episodes', '?'))
+        embed.set_image(url=anime['images']['jpg']['large_image_url'])
+        await ctx.send(embed=embed)
+    except Exception as e:
+        await ctx.send("🔴 Error al buscar anime aleatorio.")
+        print(f"Error: {e}")
 
 @bot.command()
 async def buscaranime(ctx, *, name):
@@ -200,9 +271,6 @@ async def ship(ctx, usuario1: discord.Member, usuario2: discord.Member):
 async def osu(ctx, *, username):
     """Busca información del perfil de osu! de un usuario"""
     osu_api_key = os.getenv("OSU_API_KEY")
-    if not osu_api_key:
-        await ctx.send("🔴 La API key de osu! no está configurada.")
-        return
 
     try:
         response = requests.get(f"https://osu.ppy.sh/api/get_user?k={osu_api_key}&u={username}")
@@ -239,6 +307,11 @@ async def osu(ctx, *, username):
         print(f"Error en osu: {e}")
 
 @bot.command()
+async def msg(ctx, *, msg: str):
+    await ctx.message.delete()
+    await ctx.send(msg)
+    
+@bot.command()
 async def ayuda(ctx):
     """Muestra todos los comandos disponibles"""
     embed = discord.Embed(
@@ -254,7 +327,8 @@ async def ayuda(ctx):
             "`/buscaranime <nombre>` - Busca información de un anime\n"
             "`/añadir <nombre>` - Añade un anime a tu lista\n"
             "`/lista` - Muestra tu lista de animes\n"
-            "`/elegir` - Elige un anime aleatorio"
+            "`/elegir` - Elige un anime aleatorio\n"
+            "`/randomanime <genero>` - Te recomiendo un anime del genero que quieras!"
         ),
         inline=False
     )
@@ -265,7 +339,20 @@ async def ayuda(ctx):
         value=(
             "`/ship <usuario1> <usuario2>` - Calcula la compatibilidad entre dos usuarios\n"
             "`/perfil <usuario>` - Muestra el perfil de un usuario\n"
-            "`/osu <username>` - Busca información del perfil de osu!"
+            "`/osu <username>` - Busca información del perfil de osu!\n"
+            "`/msg <mensaje>` - Te copio el mensaje!"
+            
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="🎵 **Musica**",
+        value=(
+            "`/play <titulo>` - Te pongo una musica!\n"
+            "`/leave` - Me desconecto del canal de voz.\n"
+            "`/join` - Me uno a tu canal de voz."
+            
         ),
         inline=False
     )
