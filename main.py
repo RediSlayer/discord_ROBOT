@@ -307,7 +307,7 @@ async def osu(ctx, *, username):
         print(f"Error en osu: {e}")
 
 @bot.command()
-async def msg(ctx, *, msg: str):
+async def msj(ctx, *, msj: str):
     await ctx.message.delete()
     await ctx.send(msg)
     
