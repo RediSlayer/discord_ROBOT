@@ -5,6 +5,7 @@ import random
 import key  # Importamos el archivo key.py con el token
 import os  # Importar os para acceder a las variables de entorno
 import yt_dlp as youtube_dl
+from discord import FFmpegPCMAudio
 
 # Configuración del bot
 intents = discord.Intents.default()
