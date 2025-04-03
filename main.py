@@ -74,7 +74,7 @@ async def on_ready():
 @bot.command()
 async def randomanime(ctx, genero: str = None):
     try:
-        response = requests.get("https://api.jikan.moe/v4/top/anime?limit=100")
+        response = requests.get("https://api.jikan.moe/v4/top/anime?limit=25")
         data = response.json()
         animes = data['data']
 
