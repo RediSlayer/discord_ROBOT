@@ -309,7 +309,7 @@ async def osu(ctx, *, username):
 @bot.command()
 async def msj(ctx, *, msj: str):
     await ctx.message.delete()
-    await ctx.send(msg)
+    await ctx.send(msj)
     
 @bot.command()
 async def ayuda(ctx):
