@@ -22,109 +22,40 @@ bot = commands.Bot(
 # Lista para almacenar animes (persistente mientras el bot esté activo)
 anime_list = []
 
-# Configuración mejorada para música
-FFMPEG_OPTIONS = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn'
-}
-
-YDL_OPTIONS = {
-    'format': 'bestaudio/best',
-    'noplaylist': True,
-    'quiet': True,
-    'no_warnings': True,
-    'default_search': 'auto'
-}
-
-# Sistema de colas
-queues = {}
-
-def check_queue(ctx, guild_id):
-    if queues.get(guild_id):
-        source = queues[guild_id].pop(0)
-        ctx.voice_client.play(source, after=lambda x=None: check_queue(ctx, guild_id))
-
 @bot.command()
-async def unir(ctx):
-    """Une el bot al canal de voz"""
-    if ctx.author.voice:
-        channel = ctx.author.voice.channel
-        if ctx.voice_client is None:
-            await channel.connect()
-        else:
-            await ctx.voice_client.move_to(channel)
-        await ctx.send(f"🎤 Conectado a {channel.name}")
-    else:
-        await ctx.send("🔇 Debes estar en un canal de voz")
-
-@bot.command()
-async def play(ctx, *, query):
-    """Reproduce música desde YouTube"""
-    voice_client = ctx.voice_client or await ctx.invoke(unir)
-    
+async def randomanime(ctx, genero: str = None):
     try:
-        with youtube_dl.YoutubeDL(YDL_OPTIONS) as ydl:
-            info = ydl.extract_info(f"ytsearch:{query}", download=False)
-            url = info['entries'][0]['url']
-            title = info['entries'][0]['title']
-            
-            source = FFmpegPCMAudio(url, **FFMPEG_OPTIONS)
-            
-            if not voice_client.is_playing():
-                voice_client.play(source, after=lambda x=None: check_queue(ctx, ctx.guild.id))
-                await ctx.send(f"🎶 Reproduciendo: **{title}**")
-            else:
-                if ctx.guild.id not in queues:
-                    queues[ctx.guild.id] = []
-                queues[ctx.guild.id].append(source)
-                await ctx.send(f"🎵 Añadido a la cola: **{title}**")
-                
-    except Exception as e:
-        await ctx.send(f"🔴 Error: {str(e)}")
+        response = requests.get("https://api.jikan.moe/v4/top/anime?limit=25")
+        data = response.json()
+        animes = data['data']
 
-@bot.command()
-async def pausa(ctx):
-    """Pausa la reproducción"""
-    if ctx.voice_client.is_playing():
-        ctx.voice_client.pause()
-        await ctx.send("⏸️ Pausado")
+        if genero:
+            genero = genero.lower()
+            filtrados = [a for a in animes if any(g['name'].lower() == genero for g in a['genres'])]
+            anime = random.choice(filtrados) if filtrados else random.choice(animes)
+        else:
+            anime = random.choice(animes)
 
-@bot.command()
-async def reanudar(ctx):
-    """Reanuda la reproducción"""
-    if ctx.voice_client.is_paused():
-        ctx.voice_client.resume()
-        await ctx.send("▶️ Reanudado")
-
-@bot.command()
-async def saltar(ctx):
-    """Salta la canción actual"""
-    if ctx.voice_client.is_playing():
-        ctx.voice_client.stop()
-        check_queue(ctx, ctx.guild.id)
-        await ctx.send("⏭️ Saltado")
-
-@bot.command()
-async def cola(ctx):
-    """Muestra la cola de reproducción"""
-    if ctx.guild.id in queues and queues[ctx.guild.id]:
-        embed = discord.Embed(title="🎵 Cola de reproducción", color=0x3498db)
-        for i, item in enumerate(queues[ctx.guild.id], 1):
-            embed.add_field(name=f"{i}. Canción en cola", value="\u200b", inline=False)
+        embed = discord.Embed(
+            title=anime['title'],
+            url=anime['url'],
+            description=anime.get('synopsis', 'Sin sinopsis')[:400] + "...",
+            color=0x00ff00
+        )
+        embed.add_field(name="⭐ Puntuación", value=anime.get('score', 'N/A'))
+        embed.add_field(name="📺 Episodios", value=anime.get('episodes', '?'))
+        embed.set_image(url=anime['images']['jpg']['large_image_url'])
         await ctx.send(embed=embed)
-    else:
-        await ctx.send("📭 La cola está vacía")
+    except Exception as e:
+        await ctx.send("🔴 Error al buscar anime aleatorio.")
+        print(f"Error: {e}")
+        
 
 @bot.command()
-async def leave(ctx):
-    """Desconecta el bot"""
-    if ctx.voice_client:
-        await ctx.voice_client.disconnect()
-        if ctx.guild.id in queues:
-            queues[ctx.guild.id].clear()
-        await ctx.send("✅ Desconectado")
-    else:
-        await ctx.send("🤖 No estoy conectado")
+async def msj(ctx, *, msj: str):
+    await ctx.message.delete()
+    await ctx.send(msj)
+
 
 @bot.command()
 async def buscaranime(ctx, *, name):
@@ -376,7 +307,7 @@ async def ayuda(ctx):
             "`/buscaranime <nombre>` - Busca información de un anime\n"
             "`/añadir <nombre>` - Añade un anime a tu lista\n"
             "`/lista` - Muestra tu lista de animes\n"
-            "`/elegir` - Elige un anime aleatorio"
+            "`/randomanime <genero>` - Elige un anime aleatorio"
         ),
         inline=False
     )
@@ -386,6 +317,7 @@ async def ayuda(ctx):
         value=(
             "`/ship <usuario1> <usuario2>` - Calcula la compatibilidad entre dos usuarios\n"
             "`/perfil <usuario>` - Muestra el perfil de un usuario\n"
+            "'/msj <mensage>' - Te copio tu mensaje\n"
             "`/osu <username>` - Busca información del perfil de osu!"
         ),
         inline=False
