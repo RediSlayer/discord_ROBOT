@@ -72,15 +72,14 @@ class Music(commands.Cog):
         await ctx.voice_client.disconnect()
         await ctx.send("✅ Desconectado del canal de voz.")
 
-@bot.event
-async def on_ready():
-    print(f'✅ Bot conectado como {bot.user.name}')
-    # Elimina o define la función setup si es necesaria
-    # await setup(bot)
-
 # Registrar el Cog
 async def setup(bot):
     await bot.add_cog(Music(bot))
+
+@bot.event
+async def on_ready():
+    print(f'✅ Bot conectado como {bot.user.name}')
+    await setup(bot)
 
 # Comandos adicionales...
 
