@@ -43,7 +43,7 @@ class Music(commands.Cog):
         self.bot = bot
 
     @commands.command()
-    async def join(self, ctx):
+    async def unir(self, ctx):
         if ctx.author.voice:
             channel = ctx.author.voice.channel
             await channel.connect()
@@ -362,7 +362,7 @@ async def ayuda(ctx):
         value=(
             "`/play <titulo>` - Te pongo una musica!\n"
             "`/leave` - Me desconecto del canal de voz.\n"
-            "`/join` - Me uno a tu canal de voz."
+            "`/unir` - Me uno a tu canal de voz."
             
         ),
         inline=False
