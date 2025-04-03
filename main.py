@@ -1,4 +1,3 @@
-agregalo en este codigo todo para que funcione evitando cambiar otras cosas pero si puedes modificartodo lo que tenga que ver con el youtube:
 import discord
 from discord.ext import commands
 import requests
