@@ -38,38 +38,39 @@ ytdl_format_options = {
 ffmpeg_options = {'options': '-vn'}
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
-class Music(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-
-    @commands.command()
-    async def unir(self, ctx):
-        if ctx.author.voice:
-            channel = ctx.author.voice.channel
+@bot.command()
+async def unir(ctx):
+    if ctx.author.voice:
+        channel = ctx.author.voice.channel
+        if ctx.voice_client is None:
             await channel.connect()
         else:
-            await ctx.send("¡Debes estar en un canal de voz!")
+            await ctx.voice_client.move_to(channel)
+    else:
+        await ctx.send("¡Debes estar en un canal de voz!")
 
-    @commands.command()
-    async def play(self, ctx, *, query):
+@bot.command()
+async def play(ctx, *, query):
+    voice_client = ctx.voice_client
+    if not voice_client:
+        await ctx.invoke(unir)
         voice_client = ctx.voice_client
-        if not voice_client:
-            await ctx.invoke(self.join)
-            voice_client = ctx.voice_client
 
+    try:
         info = ytdl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
         voice_client.play(FFmpegPCMAudio(info['url'], **ffmpeg_options))
         await ctx.send(f"🎵 Reproduciendo: **{info['title']}**")
+    except Exception as e:
+        await ctx.send(f"🔴 Error al reproducir: {str(e)}")
 
-    @commands.command()
-    async def leave(self, ctx):
-        await ctx.voice_client.disconnect()
-        await ctx.send("✅ Desconectado del canal de voz.")
+@bot.command()
+async def leave(ctx):
+    await ctx.voice_client.disconnect()
+    await ctx.send("✅ Desconectado del canal de voz.")
 
 @bot.event
 async def on_ready():
     print(f'✅ Bot conectado como {bot.user.name}')
-    await setup(bot)
 
 @bot.command()
 async def randomanime(ctx, genero: str = None):
