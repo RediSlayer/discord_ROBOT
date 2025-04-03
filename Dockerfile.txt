@@ -1,0 +1,18 @@
+# Usa una imagen base que tenga Python y FFmpeg instalado
+FROM python:3.9
+
+# Instala FFmpeg
+RUN apt-get update && apt-get install -y ffmpeg
+
+# Establece el directorio de trabajo
+WORKDIR /app
+
+# Copia los requisitos e instálalos
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt
+
+# Copia el resto de la aplicación
+COPY . .
+
+# Comando para ejecutar tu bot
+CMD ["python", "bot.py"]
