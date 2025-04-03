@@ -317,7 +317,7 @@ async def ayuda(ctx):
         value=(
             "`/ship <usuario1> <usuario2>` - Calcula la compatibilidad entre dos usuarios\n"
             "`/perfil <usuario>` - Muestra el perfil de un usuario\n"
-            "'/msj <mensage>' - Te copio tu mensaje\n"
+            "`/msj <mensage>` - Te copio tu mensaje\n"
             "`/osu <username>` - Busca información del perfil de osu!"
         ),
         inline=False
