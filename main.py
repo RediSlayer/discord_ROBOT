@@ -10,6 +10,7 @@ from discord import FFmpegPCMAudio
 # Configuración del bot
 intents = discord.Intents.default()
 intents.message_content = True
+intents.voice_states = True
 bot = commands.Bot(
     command_prefix="/",
     intents=intents,
@@ -81,7 +82,7 @@ async def leave(ctx):
 @bot.command()
 async def randomanime(ctx, genero: str = None):
     try:
-        response = requests.get("https://api.jikan.moe/v4/top/anime?limit=500")
+        response = requests.get("https://api.jikan.moe/v4/top/anime?limit=100")
         data = response.json()
         animes = data['data']
 
