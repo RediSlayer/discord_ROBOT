@@ -20,9 +20,8 @@ bot = commands.Bot(
 
 # Lista para almacenar animes (persistente mientras el bot esté activo)
 anime_list = []
-music_queues = {}
 
-youtube_dl.utils.bug_reports_message = lambda: ''
+# Configuración de youtube-dl y FFmpeg
 ytdl_format_options = {
     'format': 'bestaudio/best',
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
@@ -39,45 +38,38 @@ ytdl_format_options = {
 ffmpeg_options = {'options': '-vn'}
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
+class Music(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.command()
+    async def join(self, ctx):
+        if ctx.author.voice:
+            channel = ctx.author.voice.channel
+            await channel.connect()
+        else:
+            await ctx.send("¡Debes estar en un canal de voz!")
+
+    @commands.command()
+    async def play(self, ctx, *, query):
+        voice_client = ctx.voice_client
+        if not voice_client:
+            await ctx.invoke(self.join)
+            voice_client = ctx.voice_client
+
+        info = ytdl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
+        voice_client.play(FFmpegPCMAudio(info['url'], **ffmpeg_options))
+        await ctx.send(f"🎵 Reproduciendo: **{info['title']}**")
+
+    @commands.command()
+    async def leave(self, ctx):
+        await ctx.voice_client.disconnect()
+        await ctx.send("✅ Desconectado del canal de voz.")
+
 @bot.event
 async def on_ready():
     print(f'✅ Bot conectado como {bot.user.name}')
     await setup(bot)
-
-@commands.command()
-async def join(ctx):
-    if ctx.author.voice:
-        await ctx.author.voice.channel.connect()
-    else:
-        await ctx.send("¡Debes estar en un canal de voz!")
-
-@bot.command()
-async def play(ctx, *, titulo: str):
-    """Reproduce audio de YouTube"""
-    if not ctx.author.voice:
-        return await ctx.send("🔇 Debes estar en un canal de voz")
-
-    channel = ctx.author.voice.channel
-    vc = await channel.connect() if not ctx.voice_client else ctx.voice_client
-
-    ydl_opts = {"format": "bestaudio", "quiet": True}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(f"ytsearch:{titulo}", download=False)["entries"][0]
-
-    vc.play(discord.FFmpegPCMAudio(info["url"], options="-vn"))
-
-    embed = discord.Embed(title="🎵 Reproduciendo", description=f"{info['title']}", color=0x1DB954)
-    embed.set_thumbnail(url=info["thumbnail"])
-    await ctx.send(embed=embed)
-
-@bot.command()
-async def leave(ctx):
-    """Desconecta al bot de voz"""
-    if ctx.voice_client:
-        await ctx.voice_client.disconnect()
-        await ctx.send("🔇 Desconectado del canal de voz")
-    else:
-        await ctx.send("🤖 No estoy en ningún canal de voz")
 
 @bot.command()
 async def randomanime(ctx, genero: str = None):
