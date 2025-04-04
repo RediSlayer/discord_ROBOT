@@ -5,8 +5,6 @@ import random
 import key  # Importamos el archivo key.py con el token
 import os  # Importar os para acceder a las variables de entorno
 import yt_dlp
-from pydub import AudioSegment
-import simpleaudio as sa
 
 # Configuración del bot
 intents = discord.Intents.default()
@@ -50,21 +48,9 @@ async def play(ctx, *, titulo: str):
     title = info.get('title', 'Unknown Title')
     thumbnail = info.get('thumbnail', '')
 
-    # Descargar el audio
-    audio_file = f"{title}.m4a"
-    ydl_opts['outtmpl'] = audio_file
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
-
-    # Convertir el audio a un formato reproducible
-    audio = AudioSegment.from_file(audio_file)
-    wav_file = f"{title}.wav"
-    audio.export(wav_file, format="wav")
-
-    # Reproducir el audio
-    wave_obj = sa.WaveObject.from_wave_file(wav_file)
-    play_obj = wave_obj.play()
-    play_obj.wait_done()  # Esperar a que termine la reproducción
+    # Utiliza FFmpegPCMAudio para reproducir el audio
+    source = discord.FFmpegPCMAudio(url)
+    vc.play(discord.PCMVolumeTransformer(source))
 
     embed = discord.Embed(title="🎵 Reproduciendo", description=f"{title}", color=0x1DB954)
     embed.set_thumbnail(url=thumbnail)
