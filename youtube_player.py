@@ -8,7 +8,7 @@ class YouTubePlayer(commands.Cog):
 
     @commands.command()
     async def play(self, ctx, *, titulo: str):
-        """Reproduce audio de YouTube sin usar FFmpeg"""
+        """Reproduce audio de YouTube"""
         if not ctx.author.voice:
             return await ctx.send("🔇 Debes estar en un canal de voz")
 
@@ -21,7 +21,7 @@ class YouTubePlayer(commands.Cog):
 
         # Attempt to play using direct stream URL
         url = info["url"]
-        source = await discord.FFmpegOpusAudio.from_probe(url, method="fallback")
+        source = discord.FFmpegPCMAudio(url, options="-vn")
         vc.play(source)
 
         embed = discord.Embed(title="🎵 Reproduciendo", description=f"{info['title']}", color=0x1DB954)
