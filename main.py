@@ -4,7 +4,7 @@ import requests
 import random
 import key  # Importamos el archivo key.py con el token
 import os  # Importar os para acceder a las variables de entorno
-import yt_dlp
+import youtube_dl
 
 # Configuración del bot
 intents = discord.Intents.default()
@@ -34,22 +34,25 @@ async def play(ctx, *, titulo: str):
     vc = await channel.connect() if not ctx.voice_client else ctx.voice_client
 
     ydl_opts = {
-        "format": "bestaudio",
+        "format": "bestaudio/best",
         "quiet": True,
         "default_search": "ytsearch",
         "extract_flat": "in_playlist"
     }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(titulo, download=False)
-
-    if "entries" in info:
-        info = info["entries"][0]
+        if "entries" in info:
+            info = info["entries"][0]
 
     url = info["url"]
-    vc.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(url)))
+    title = info.get('title', 'Unknown Title')
+    thumbnail = info.get('thumbnail', '')
 
-    embed = discord.Embed(title="🎵 Reproduciendo", description=f"{info['title']}", color=0x1DB954)
-    embed.set_thumbnail(url=info["thumbnail"])
+    source = await discord.FFmpegOpusAudio.from_probe(url)
+    vc.play(discord.PCMVolumeTransformer(source))
+
+    embed = discord.Embed(title="🎵 Reproduciendo", description=f"{title}", color=0x1DB954)
+    embed.set_thumbnail(url=thumbnail)
     await ctx.send(embed=embed)
 
 @bot.command()
