@@ -22,7 +22,7 @@ anime_list = []
 @bot.event
 async def on_ready():
     print(f'✅ Bot conectado como {bot.user.name}')
-    await bot.load_extension("youtube_player")
+    bot.load_extension("youtube_player")
 
 @bot.command()
 async def randomanime(ctx, genero: str = None):
