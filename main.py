@@ -16,11 +16,13 @@ bot = commands.Bot(
     activity=discord.Activity(type=discord.ActivityType.listening, name="¿Tienes dudas? Usa /ayuda")
 )
 
-# Cargar la extensión de YouTubePlayer
-bot.load_extension("youtube_player")
-
 # Lista para almacenar animes (persistente mientras el bot esté activo)
 anime_list = []
+
+@bot.event
+async def on_ready():
+    print(f'✅ Bot conectado como {bot.user.name}')
+    await bot.load_extension("youtube_player")
 
 @bot.command()
 async def randomanime(ctx, genero: str = None):
@@ -320,9 +322,5 @@ async def ayuda(ctx):
     embed.set_footer(text=f"Pedido por {ctx.author.name}", icon_url=ctx.author.avatar.url)
     
     await ctx.send(embed=embed)
-
-@bot.event
-async def on_ready():
-    print(f'✅ Bot conectado como {bot.user.name}')
 
 bot.run(key.DISCORD_TOKEN)
