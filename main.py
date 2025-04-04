@@ -4,9 +4,6 @@ import requests
 import random
 import key  # Importamos el archivo key.py con el token
 import os  # Importar os para acceder a las variables de entorno
-import yt_dlp as youtube_dl
-from discord import FFmpegPCMAudio
-import asyncio
 
 # Configuración del bot
 intents = discord.Intents.default()
@@ -18,6 +15,9 @@ bot = commands.Bot(
     help_command=None,
     activity=discord.Activity(type=discord.ActivityType.listening, name="¿Tienes dudas? Usa /ayuda")
 )
+
+# Cargar la extensión de YouTubePlayer
+bot.load_extension("youtube_player")
 
 # Lista para almacenar animes (persistente mientras el bot esté activo)
 anime_list = []
