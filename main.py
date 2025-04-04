@@ -4,7 +4,7 @@ import requests
 import random
 import key  # Importamos el archivo key.py con el token
 import os  # Importar os para acceder a las variables de entorno
-import yt_dlp
+import wavelink
 
 # Configuración del bot
 intents = discord.Intents.default()
@@ -23,37 +23,27 @@ anime_list = []
 @bot.event
 async def on_ready():
     print(f'✅ Bot conectado como {bot.user.name}')
+    # Conectar al nodo de Lavalink
+    await wavelink.NodePool.create_node(bot=bot, host='nombre-de-tu-aplicacion.up.railway.app', port=80, password='youshallnotpass')
 
 @bot.command()
-async def play(ctx, *, titulo: str):
-    """Reproduce audio de YouTube"""
+async def play(ctx, *, query: str):
+    """Reproduce audio de YouTube usando wavelink"""
     if not ctx.author.voice:
         return await ctx.send("🔇 Debes estar en un canal de voz")
 
     channel = ctx.author.voice.channel
-    vc = await channel.connect() if not ctx.voice_client else ctx.voice_client
+    vc = await channel.connect(cls=wavelink.Player) if not ctx.voice_client else ctx.voice_client
 
-    ydl_opts = {
-        "format": "bestaudio",
-        "quiet": True,
-        "default_search": "ytsearch",
-        "extract_flat": "in_playlist"
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(titulo, download=False)
-        if "entries" in info:
-            info = info["entries"][0]
+    tracks = await wavelink.YouTubeTrack.search(query)
+    if not tracks:
+        return await ctx.send("❌ No se encontraron resultados")
 
-    url = info["url"]
-    title = info.get('title', 'Unknown Title')
-    thumbnail = info.get('thumbnail', '')
+    track = tracks[0]
+    await vc.play(track)
 
-    # Utiliza FFmpegPCMAudio para reproducir el audio
-    source = discord.FFmpegPCMAudio(url)
-    vc.play(discord.PCMVolumeTransformer(source))
-
-    embed = discord.Embed(title="🎵 Reproduciendo", description=f"{title}", color=0x1DB954)
-    embed.set_thumbnail(url=thumbnail)
+    embed = discord.Embed(title="🎵 Reproduciendo", description=f"{track.title}", color=0x1DB954)
+    embed.set_thumbnail(url=track.thumbnail)
     await ctx.send(embed=embed)
 
 @bot.command()
