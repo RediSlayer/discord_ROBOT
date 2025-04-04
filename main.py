@@ -4,7 +4,7 @@ import requests
 import random
 import key  # Importamos el archivo key.py con el token
 import os  # Importar os para acceder a las variables de entorno
-import wavelink
+import yt_dlp
 
 # Configuración del bot
 intents = discord.Intents.default()
@@ -23,31 +23,33 @@ anime_list = []
 @bot.event
 async def on_ready():
     print(f'✅ Bot conectado como {bot.user.name}')
-    await bot.load_extension("wavelink")
-
-@bot.event
-async def on_wavelink_ready():
-    node = wavelink.Node(uri='lavalink://localhost:2333', password='youshallnotpass')
-    await wavelink.NodePool.connect(node)
 
 @bot.command()
-async def play(ctx, *, query: str):
-    """Reproduce audio de YouTube usando wavelink"""
+async def play(ctx, *, titulo: str):
+    """Reproduce audio de YouTube"""
     if not ctx.author.voice:
         return await ctx.send("🔇 Debes estar en un canal de voz")
 
     channel = ctx.author.voice.channel
-    vc = await channel.connect(cls=wavelink.Player) if not ctx.voice_client else ctx.voice_client
+    vc = await channel.connect() if not ctx.voice_client else ctx.voice_client
 
-    tracks = await wavelink.YouTubeTrack.search(query)
-    if not tracks:
-        return await ctx.send("❌ No se encontraron resultados")
+    ydl_opts = {
+        "format": "bestaudio",
+        "quiet": True,
+        "default_search": "ytsearch",
+        "extract_flat": "in_playlist"
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(titulo, download=False)
 
-    track = tracks[0]
-    await vc.play(track)
+    if "entries" in info:
+        info = info["entries"][0]
 
-    embed = discord.Embed(title="🎵 Reproduciendo", description=f"{track.title}", color=0x1DB954)
-    embed.set_thumbnail(url=track.thumbnail)
+    url = info["url"]
+    vc.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(url)))
+
+    embed = discord.Embed(title="🎵 Reproduciendo", description=f"{info['title']}", color=0x1DB954)
+    embed.set_thumbnail(url=info["thumbnail"])
     await ctx.send(embed=embed)
 
 @bot.command()
