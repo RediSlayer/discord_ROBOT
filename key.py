@@ -1,3 +1,3 @@
-DISCORD_TOKEN = "MTM1NjY3NjM2ODM4MDcyMzI1MQ.GUyB05.NnZnjsySaZAEiB1r_JWCvrlB7w5QQcw6JolSjI"
-OSU_API_KEY = "a165f6ab41190e65f17dba2dd5f3d8f109b6cd7b"
-YOUTUBE_API_KEY = "AIzaSyDar9f4u8nLTfljxMrtWVq1qJTBBPB3hb0"
+DISCORD_TOKEN = ""
+OSU_API_KEY = ""
+YOUTUBE_API_KEY = "" #Esta key realmente no nos funciono al implementar la funcion de escuchar musica 
